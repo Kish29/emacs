@@ -143,27 +143,17 @@ The second subexpression should match the bug reference (usually a number)."
   (when (string-match url-rx url)
     (setq-local bug-reference-bug-regexp bug-rx)
     (setq-local bug-reference-url-format
-                (if (and (functionp bug-url-fmt)
-                         ;; A valid bug-reference-url-format function must
-                         ;; be callable without arguments so we assume a
-                         ;; min-arity of 1 means we should call bug-url-fmt
-                         ;; in order to get a valid
-                         ;; bug-reference-url-format.
-                         (let ((arity (func-arity bug-url-fmt)))
-                           (and (consp arity)
-                                (= 1 (car arity)))))
-                    (let (groups)
-                      (dotimes (i 10)
-                        (push (match-string i url) groups))
-                      (funcall bug-url-fmt (nreverse groups)))
-                  bug-url-fmt))))
+                (let (groups)
+                  (dotimes (i (/ (length (match-data)) 2))
+                    (push (match-string i url) groups))
+                  (funcall bug-url-fmt (nreverse groups))))))
 
 (defvar bug-reference-setup-from-vc-alist
   `(;; GNU projects on savannah.  FIXME: Only a fraction of
     ;; them uses debbugs.
-    ("git\\.\\(sv\\|savannah\\)\\.gnu\\.org:"
+    ("git\\.\\(?:sv\\|savannah\\)\\.gnu\\.org:"
      "\\([Bb]ug ?#?\\)\\([0-9]+\\(?:#[0-9]+\\)?\\)"
-     "https://debbugs.gnu.org/%s")
+     ,(lambda (_) "https://debbugs.gnu.org/%s"))
     ;; GitHub projects.  Here #17 may refer to either an issue
     ;; or a pull request but visiting the issue/17 web page
     ;; will automatically redirect to the pull/17 page if 17 is
@@ -185,7 +175,7 @@ The second subexpression should match the bug reference (usually a number)."
     ;; request.  Explicit namespace/project#18 references to possibly
     ;; different projects are also supported.
     ("[/@]gitlab.com[/:]\\([.A-Za-z0-9_/-]+\\)\\.git"
-     "\\(?1:[.A-Za-z0-9_/-]+\\)?\\(?3:#\\|!\\)\\(?2:[0-9]+\\)"
+     "\\(?1:[.A-Za-z0-9_/-]+\\)?\\(?3:[#!]\\)\\(?2:[0-9]+\\)"
      ,(lambda (groups)
         (let ((ns-project (nth 1 groups)))
           (lambda ()
@@ -199,22 +189,19 @@ The second subexpression should match the bug reference (usually a number)."
                     (match-string 2)))))))
   "An alist for setting up `bug-reference-mode' based on VC URL.
 
-Each element has the form (URL-REGEXP BUG-REGEXP URL-FORMAT).
-URL-REGEXP is matched against the version control URL of the
-current buffer's file and if it matches, BUG-REGEXP and
-URL-FORMAT are set as `bug-reference-bug-regexp' and
-`bug-reference-url-format'.
+Each element has the form (URL-REGEXP BUG-REGEXP URL-FORMAT-FN).
 
-As an exception, URL-FORMAT may also be a function of min-arity
-1.  In this case, the function is called with a single argument
-being a 10-element list of the groups 0 to 9 of matching
-URL-REGEXP against the VCS URL.  The function's return value is
-set as `bug-reference-url-format'.")
+URL-REGEXP is matched against the version control URL of the
+current buffer's file.  If it matches, BUG-REGEXP is set as
+`bug-reference-bug-regexp'.  URL-FORMAT-FN is a function of one
+argument that receives a list of the groups 0 to N of matching
+URL-REGEXP against the VCS URL and return the value to be set as
+`bug-reference-url-format'.")
 
 (defun bug-reference-try-setup-from-vc ()
-  "Try setting up `bug-reference-bug-regexp' and
-`bug-reference-url-format' from the version control system of the
-current file.  "
+  "Try setting up `bug-reference-mode' based on VCS information.
+Tests each configuration from `bug-reference-setup-from-vc-alist'
+and sets it if applicable."
   (when buffer-file-name
     (let* ((backend (vc-responsible-backend buffer-file-name t))
            (url
@@ -260,6 +247,9 @@ article buffer.")
 (defvar gnus-newsgroup-name)
 
 (defun bug-reference-try-setup-from-gnus ()
+  "Try setting up `bug-reference-mode' based on Gnus group or article.
+Tests each configuration from `bug-reference-setup-from-gnus-alist'
+and sets it if applicable."
   (when (and (derived-mode-p 'gnus-summary-mode)
              (bound-and-true-p gnus-newsgroup-name))
     ;; Gnus reuses its article buffer so we have to check whenever the
@@ -326,17 +316,26 @@ article buffer.")
                   (setq-local bug-reference-url-format (nth 3 config))
                   (throw 'setup-done t))))))))))
 
-;;;###autoload
 (defvar bug-reference-setup-functions
   (list #'bug-reference-try-setup-from-vc
         #'bug-reference-try-setup-from-gnus)
-  "A list of function for setting up bug-reference mode.
+  "Special hook run to set up bug-reference formats.
 A setup function should return non-nil if it set
 `bug-reference-bug-regexp' and `bug-reference-url-format'
 appropiately for the current buffer.  The functions are called in
-sequence stopping as soon as one signalled a successful setup.
+sequence stopping as soon as one signaled a successful setup.
 They are only called if the two variables aren't set already,
-e.g., by a local variables section.")
+e.g., by a local variables section.
+
+The following functions are provided:
+
+- `bug-reference-try-setup-from-vc' tries to set up
+  `bug-reference-mode' based on the current file's version
+  control information.
+
+- `bug-reference-try-setup-from-gnus' tries to set up
+  `bug-reference-mode' based on the current Gnus summary or
+  article buffer.")
 
 (defun bug-reference--init ()
   "Initialize `bug-reference-mode'."
