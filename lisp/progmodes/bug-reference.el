@@ -152,7 +152,7 @@ The second subexpression should match the bug reference (usually a number)."
   `(;; GNU projects on savannah.  FIXME: Only a fraction of
     ;; them uses debbugs.
     ("git\\.\\(?:sv\\|savannah\\)\\.gnu\\.org:"
-     "\\([Bb]ug ?#?\\)\\([0-9]+\\(?:#[0-9]+\\)?\\)"
+     "\\<\\([Bb]ug ?#?\\)\\([0-9]+\\(?:#[0-9]+\\)?\\)\\>"
      ,(lambda (_) "https://debbugs.gnu.org/%s"))
     ;; GitHub projects.  Here #17 may refer to either an issue
     ;; or a pull request but visiting the issue/17 web page
@@ -160,7 +160,7 @@ The second subexpression should match the bug reference (usually a number)."
     ;; a PR.  Explicit user/project#17 links to possibly
     ;; different projects are also supported.
     ("[/@]github.com[/:]\\([.A-Za-z0-9_/-]+\\)\\.git"
-     "\\([.A-Za-z0-9_/-]+\\)?\\(?:#\\)\\([0-9]+\\)"
+     "\\([.A-Za-z0-9_/-]+\\)?\\(?:#\\)\\([0-9]+\\)\\>"
      ,(lambda (groups)
         (let ((ns-project (nth 1 groups)))
           (lambda ()
@@ -175,7 +175,7 @@ The second subexpression should match the bug reference (usually a number)."
     ;; request.  Explicit namespace/project#18 references to possibly
     ;; different projects are also supported.
     ("[/@]gitlab.com[/:]\\([.A-Za-z0-9_/-]+\\)\\.git"
-     "\\(?1:[.A-Za-z0-9_/-]+\\)?\\(?3:[#!]\\)\\(?2:[0-9]+\\)"
+     "\\(?1:[.A-Za-z0-9_/-]+\\)?\\(?3:[#!]\\)\\(?2:[0-9]+\\)\\>"
      ,(lambda (groups)
         (let ((ns-project (nth 1 groups)))
           (lambda ()
