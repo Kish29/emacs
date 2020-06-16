@@ -2465,18 +2465,17 @@ tokens and keys associated with passwords."
   :group 'auth-source
 
   (when auth-source-reveal-mode
-    (let ((prettify-augments
-           `(auth-source-reveal-mode-prettify-regexp ; identifier symbol
-             ,(if (apply #'derived-mode-p auth-source-reveal-json-modes)
-                  (format "\"?password\"?[:[:blank:]]+\"\\([^\t\r\n\"]+\\)\"" auth-source-reveal-regex)
-                (format "\\b%s\\b\\s-+\\([^ \t\r\n]+\\)" auth-source-reveal-regex))
-             ,auth-source-reveal-hider)))
+    ;; Install the prettification magic.
+    (prettify-symbols-add-prettification-rx
+     'auth-source-reveal-mode-prettify-regexp ; The identifier symbol.
+     ;; regexp to hide/reveal
+     (if (apply #'derived-mode-p auth-source-reveal-json-modes)
+         (format "\"?password\"?[:[:blank:]]+\"\\([^\t\r\n\"]+\\)\"" auth-source-reveal-regex)
+       (format "\\b%s\\b\\s-+\\([^ \t\r\n]+\\)" auth-source-reveal-regex))
+     auth-source-reveal-hider)
 
-      (setq-local
-       prettify-symbols-compose-predicate #'auth-source-reveal-compose-p
-       prettify-symbols-alist (cl-adjoin prettify-augments
-                                         prettify-symbols-alist
-                                         :test #'equal)))
+    (setq-local
+     prettify-symbols-compose-predicate #'auth-source-reveal-compose-p)
     (unless prettify-symbols-unprettify-at-point
       (auth-source-do-warn
        "Please set `%s' to _see_ passwords at point"
